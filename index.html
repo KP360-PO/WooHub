@@ -355,7 +355,7 @@ header { border-color: var(--line); box-shadow: var(--shadow-sm); }
     <div class="bg-white rounded-2xl shadow-2xl w-[min(900px,95vw)] max-h-[90vh] overflow-auto p-6 relative">
       <button id="viewer-close" class="absolute top-4 right-4 text-2xl leading-none text-gray-500 hover:text-gray-700 icon-btn" aria-label="Close">&times;</button>
       <h3 id="viewer-title" class="text-xl font-semibold mb-2"></h3>
-      <div id="viewer-body" class="prose max-w-none content-rich"></div>
+      <div id="viewer-body" class="prose max-w-none content-rich whitespace-pre-wrap" style="white-space: pre-wrap;"></div>
     </div>
   </div>
 
@@ -460,50 +460,39 @@ const fmtDate = s => s ? new Date(s).toLocaleString(undefined, {
       });
     }
 
-    /* ===== cache + optimistic queue ===== */
-    const CACHE_NS = 'woohub_cache_v1';
-    function _ck(tab){ return `${CACHE_NS}:${tab}`; }
-    function readCacheObj(tab){ try { return JSON.parse(localStorage.getItem(_ck(tab)) || '{}'); } catch { return {}; } }
-    function writeCacheObj(tab, data){ localStorage.setItem(_ck(tab), JSON.stringify({ ts: Date.now(), data })); }
-    function getCachedRows(tab){ const obj = readCacheObj(tab); return Array.isArray(obj.data) ? obj.data : []; }
-    async function getTabFast(tab, onRender){
-      const cached = getCachedRows(tab);
-      if (cached.length) onRender(cached, true);
-      try {
-        const fresh = await getTab(tab);
-        writeCacheObj(tab, fresh);
-        onRender(fresh, false);
-      } catch (e) { if (!cached.length) throw e; }
-    }
+    /* ===== cache + optimistic queue (REMOVED; backend-first) ===== */
+// Add lightweight READ-ONLY snapshot to speed up initial render (no optimistic writes).
+const SNAPKEY = 'woohub_snapshot_v1';
+function readSnapshot(tab){
+  try {
+    const all = JSON.parse(localStorage.getItem(SNAPKEY) || '{}');
+    return Array.isArray(all[tab]) ? all[tab] : null;
+  } catch { return null; }
+}
+function writeSnapshot(tab, rows){
+  try {
+    const all = JSON.parse(localStorage.getItem(SNAPKEY) || '{}');
+    all[tab] = rows;
+    localStorage.setItem(SNAPKEY, JSON.stringify(all));
+  } catch {}
+}
 
-    const OPS_NS = 'woohub_ops_v1';
-    const SYNC_LOCK = { working:false };
-    function _readOps(){ try { return JSON.parse(localStorage.getItem(OPS_NS) || '[]'); } catch { return []; } }
-    function _writeOps(list){ localStorage.setItem(OPS_NS, JSON.stringify(list)); }
-    function enqueueOp(op){ const list=_readOps(); list.push(op); _writeOps(list); trySyncOps(); }
-    function showSync(v){ if(!$syncDot) return; $syncDot.classList.toggle('hidden', !v); }
-    async function trySyncOps(){
-      if (SYNC_LOCK.working) return;
-      if (navigator.onLine === false) return;
-      let list = _readOps();
-      if (!list.length) return;
-      SYNC_LOCK.working = true; showSync(true);
-      try {
-        while (list.length) {
-          const op = list[0];
-          const res = await adminAction(op.body);
-          if (!res?.ok) throw new Error(res?.error || 'Sync failed');
-          list.shift(); _writeOps(list);
-        }
-      } catch (e) {
-        console.warn('Sync paused:', e.message);
-      } finally {
-        SYNC_LOCK.working = false; showSync(false);
-      }
-    }
-    window.addEventListener('online', trySyncOps);
+// All reads go to backend, but we render any existing snapshot first.
+async function getTabFast(tab, render){
+  const snap = readSnapshot(tab);
+  if (snap) { try { render(snap); } catch(e){} }
+  const fresh = await getTab(tab);
+  try { render(fresh); } catch(e){}
+  writeSnapshot(tab, fresh);
+}
 
-    /* ===== cards ===== */
+// No-op queue + sync indicator removed
+function enqueueOp(){ /* removed */ }
+function trySyncOps(){ /* removed */ }
+function showSync(){ /* removed */ }
+/* ===== cards ===== */
+
+
     const cards = [
       { title: 'Announcements',   slug: 'Announcements',   description: 'Company-wide updates and news.' },
       { title: 'Release Notes',   slug: 'Release Notes',   description: 'Recent changes and fixes.' },
@@ -719,7 +708,10 @@ const fmtDate = s => s ? new Date(s).toLocaleString(undefined, {
       $viewerTitle.textContent = name || '';
       $viewerBody.innerHTML = renderContent(html) || '<p class="text-gray-500">No content.</p>';
       openModal($viewer);
-    }
+    
+      // Ensure whitespace preserved even if class/styles aren't applied
+      if ($viewerBody) { $viewerBody.style.whiteSpace = 'pre-wrap'; }
+}
     qs('#viewer-close').addEventListener('click', () => closeModal($viewer));
     $viewer.addEventListener('click', (e) => { if (e.target === $viewer) closeModal($viewer); });
 
@@ -738,23 +730,21 @@ const fmtDate = s => s ? new Date(s).toLocaleString(undefined, {
     }
     $deleteCancel.addEventListener('click', () => { closePopover($deletePop); pendingDelete = null; });
     $deleteOk.addEventListener('click', async () => {
-      if (!pendingDelete) return;
-      const { tab, row } = pendingDelete;
-      closePopover($deletePop);
-
-      // Optimistic remove from cache
-      const current = getCachedRows(tab);
-      const filtered = current.filter(it => it._row !== row && row !== 0);
-      writeCacheObj(tab, filtered);
-
-      await refreshOpenSectionIfAny();
-      await renderAnnouncementsBanner();
-      await refreshNotifications();
-
-      enqueueOp({ body: { action: 'delete', tab, row } });
-      pendingDelete = null;
-    });
-
+  if (!pendingDelete) return;
+  const { tab, row } = pendingDelete;
+  closePopover($deletePop);
+  try {
+    const res = await adminAction({ action: 'delete', tab, row });
+    if (!res?.ok) throw new Error(res?.error || 'Delete failed');
+    await refreshOpenSectionIfAny();
+    await renderAnnouncementsBanner();
+    await refreshNotifications();
+  } catch (e) {
+    alert('Delete failed: ' + e.message);
+  } finally {
+    pendingDelete = null;
+  }
+});
     /* ===== admin login bubble ===== */
     function openAdminLogin(){
       $adminPopMsg.textContent = '';
@@ -827,61 +817,37 @@ const fmtDate = s => s ? new Date(s).toLocaleString(undefined, {
 
     // Optimistic submit
     $form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      $msg.className = 'text-sm';
-      $msg.textContent = 'Saving locally…';
+  e.preventDefault();
+  $msg.className = 'text-sm';
+  $msg.textContent = 'Saving…';
 
-      const fd = new FormData($form);
-      const mode = fd.get('mode');
-      const tab  = fd.get('tab');
-      const payload = {
-        tab,
-        category: fd.get('category') || '',
-        name: fd.get('name') || '',
-        url: fd.get('url') || '',
-        content: fd.get('content') || ''
-      };
+  const fd = new FormData($form);
+  const mode = fd.get('mode');
+  const tab  = fd.get('tab');
+  const payload = {
+    action: mode === 'add' ? 'add' : 'update',
+    tab,
+    row: mode === 'add' ? undefined : Number(fd.get('row')||0),
+    category: fd.get('category') || '',
+    name: fd.get('name') || '',
+    url: fd.get('url') || '',
+    content: fd.get('content') || ''
+  };
 
-      // Optimistic cache update
-      const nowISO = new Date().toISOString();
-      const current = getCachedRows(tab);
+  try {
+    const res = await adminAction(payload);
+    if (!res?.ok) throw new Error(res?.error || 'Save failed');
+    $msg.className = 'text-sm text-green-600';
+    $msg.textContent = 'Saved!';
+    await Promise.all([refreshOpenSectionIfAny(), renderAnnouncementsBanner(), refreshNotifications()]);
+    setTimeout(() => { closeModal($modal); }, 200);
+  } catch (err) {
+    $msg.className = 'text-sm text-red-600';
+    $msg.textContent = 'Error: ' + (err?.message || 'Save failed');
+  }
+});
 
-      if (mode === 'add') {
-        let optimistic;
-        if (tab === 'Announcements' || tab === 'Release Notes') {
-          optimistic = { time: nowISO, text: payload.content, _row: null };
-        } else if (tab === 'links') {
-          optimistic = { category: payload.category, name: payload.name, url: payload.url, _row: null };
-        } else {
-          optimistic = { category: payload.category, name: payload.name, content: payload.content, _row: null };
-        }
-        writeCacheObj(tab, [optimistic, ...current]);
-      } else {
-        const row = Number(fd.get('row') || 0);
-        const updated = current.map(it => {
-          if (row && it._row === row) {
-            if (tab === 'Announcements' || tab === 'Release Notes') return { ...it, time: nowISO, text: payload.content };
-            if (tab === 'links') return { ...it, category: payload.category, name: payload.name, url: payload.url };
-            return { ...it, category: payload.category, name: payload.name, content: payload.content };
-          }
-          return it;
-        });
-        writeCacheObj(tab, updated);
-      }
-
-      await Promise.all([refreshOpenSectionIfAny(), renderAnnouncementsBanner(), refreshNotifications()]);
-
-      const body = (mode === 'add')
-        ? { action: 'add', ...payload }
-        : { action: 'update', row: Number(fd.get('row')||0), ...payload };
-      enqueueOp({ body });
-
-      $msg.className = 'text-sm text-green-600';
-      $msg.textContent = 'Saved locally — syncing…';
-      setTimeout(() => { closeModal($modal); }, 400);
-    });
-
-    /* ===== notifications ===== */
+/* ===== notifications ===== */
     function getNotifReadAt(){ return Number(localStorage.getItem('woohub_notif_read_at') || 0); }
     function setNotifReadAt(ts){ localStorage.setItem('woohub_notif_read_at', String(ts)); }
 
@@ -927,10 +893,6 @@ const fmtDate = s => s ? new Date(s).toLocaleString(undefined, {
   }
 });
 
-// Remove the old document.addEventListener('click', ...) block for notif;
-// openPopover/closePopover already handle outside-click + Esc + resize/scroll.
-
-
     // Latest-only announcement banner
     async function renderAnnouncementsBanner() {
       try {
@@ -975,7 +937,8 @@ const fmtDate = s => s ? new Date(s).toLocaleString(undefined, {
       if (!searchBuilt) { fuseInstance = await buildSearchIndex(); searchBuilt = true; }
       return fuseInstance;
     }
-    function wireSearch(inputEl, listEl) {
+    
+function wireSearch(inputEl, listEl) {
   let lastResults = [];
   function renderList(results){
     if (!results.length) {
@@ -1038,6 +1001,8 @@ const fmtDate = s => s ? new Date(s).toLocaleString(undefined, {
     if (!listEl.contains(e.target) && e.target !== inputEl) listEl.classList.add('hidden');
   });
 }
+
+
     /* ===== modal plumbing ===== */
     function trapFocus(modal) {
       const focusables = modal.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
@@ -1093,7 +1058,7 @@ function closePopover(pop){
       await renderAnnouncementsBanner();
       await refreshNotifications();
       setInterval(refreshNotifications, 60_000);
-      trySyncOps();
+      // trySyncOps removed (no local queue)
     })();
   </script>
 </body>
