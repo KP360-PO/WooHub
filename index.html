@@ -976,27 +976,68 @@ const fmtDate = s => s ? new Date(s).toLocaleString(undefined, {
       return fuseInstance;
     }
     function wireSearch(inputEl, listEl) {
-      inputEl.addEventListener('input', async (e) => {
-        const q = e.target.value.trim();
-        if (!q) return listEl.classList.add('hidden');
-        const fuse = await ensureSearch();
-        const results = fuse.search(q).slice(0, 12);
-        listEl.innerHTML = results.length ? results.map(r => `<li class="px-4 py-2 hover:bg-gray-50 cursor-pointer">${r.item.name}</li>`).join('') :
-          `<li class="px-4 py-2 text-gray-500">No results</li>`;
-        listEl.classList.remove('hidden');
-        Array.from(listEl.children).forEach((li, idx) => {
-          const { item } = results[idx] || {};
-          li.onclick = () => {
-            listEl.classList.add('hidden');
-            openSection(item.slug, cards.find(c => c.slug === item.slug)?.title || item.slug);
-          };
-        });
-      });
-      document.addEventListener('click', (e) => {
-        if (!listEl.contains(e.target) && e.target !== inputEl) listEl.classList.add('hidden');
-      });
+  let lastResults = [];
+  function renderList(results){
+    if (!results.length) {
+      listEl.innerHTML = `<li class="px-4 py-2 text-gray-500">No results</li>`;
+      listEl.classList.remove('hidden');
+      return;
     }
+    listEl.innerHTML = results.map(r => {
+      const sec = r.item.slug;
+      const title = escapeHTML(r.item.name || '');
+      const secLabel = escapeHTML(cards.find(c => c.slug === sec)?.title || sec);
+      return `<li class="px-4 py-2 hover:bg-gray-50 cursor-pointer flex items-center justify-between gap-3" data-idx="${r.refIndex}">
+        <span class="truncate">${title}</span>
+        <span class="text-[11px] px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 shrink-0">${secLabel}</span>
+      </li>`;
+    }).join('');
+    listEl.classList.remove('hidden');
+    Array.from(listEl.children).forEach((li, idx) => {
+      li.onclick = () => openResult(results[idx]?.item);
+    });
+  }
+  function openResult(item){
+    if (!item) return;
+    let html = '';
+    if (item.slug === 'links') {
+      const url = (item.content || '').trim();
+      const safeUrl = escapeHTML(url);
+      const safeName = escapeHTML(item.name || url || 'Link');
+      html = `<p class="mb-2">Open link:</p><p><a class="text-indigo-600 hover:underline" href="${safeUrl}" target="_blank" rel="noopener">${safeName}</a></p>`;
+    } else if (item.slug === 'Announcements' || item.slug === 'Release Notes') {
+      html = item.content || item.text || '';
+    } else {
+      html = item.content || '';
+    }
+    openViewer(item.name || (cards.find(c => c.slug === item.slug)?.title || 'Item'), html);
+    listEl.classList.add('hidden');
+    inputEl.blur();
+  }
 
+  inputEl.addEventListener('input', async (e) => {
+    const q = e.target.value.trim();
+    if (!q) { listEl.classList.add('hidden'); return; }
+    const fuse = await ensureSearch();
+    const results = fuse.search(q).slice(0, 12);
+    lastResults = results;
+    renderList(results);
+  });
+
+  inputEl.addEventListener('keydown', async (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (!lastResults.length) return;
+      openResult(lastResults[0].item);
+    } else if (e.key === 'Escape') {
+      listEl.classList.add('hidden');
+    }
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!listEl.contains(e.target) && e.target !== inputEl) listEl.classList.add('hidden');
+  });
+}
     /* ===== modal plumbing ===== */
     function trapFocus(modal) {
       const focusables = modal.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
