@@ -1,0 +1,1033 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>WooHub</title>
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/woohub_mark.png">
+  <!-- Tailwind (CDN) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- DOMPurify for safe HTML rendering -->
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
+
+  <style>
+    /* ---- base ---- */
+    @media (prefers-reduced-motion: reduce) {
+      * { animation-duration: 0.001ms!important; animation-iteration-count: 1!important; transition-duration: 0.001ms!important; scroll-behavior: auto!important; }
+    }
+    .hydration-cloak { visibility: hidden; }
+    .icon-btn { padding: .375rem; border-radius: .5rem; }
+    .icon-btn:focus-visible { outline: 2px solid #6366f1; outline-offset: 2px; }
+    .modal-backdrop { backdrop-filter: blur(3px); }
+
+    /* buttons (plain CSS; no @apply) */
+    .btn-primary {
+      display:inline-flex; align-items:center; justify-content:center;
+      background:#4f46e5; color:#fff; border-radius:.75rem; padding:.5rem 1rem;
+      border: none; font-weight:500;
+    }
+    .btn-primary:hover { background:#4338ca; }
+    .btn-primary:focus-visible { outline:2px solid #4f46e5; outline-offset:2px; }
+
+    .btn-ghost {
+      display:inline-flex; align-items:center; justify-content:center;
+      background:#fff; color:#111827; border-radius:.75rem; padding:.5rem 1rem;
+      border:1px solid #e5e7eb;
+    }
+    .btn-ghost:hover { background:#f9fafb; }
+    .btn-ghost:focus-visible { outline:2px solid #4f46e5; outline-offset:2px; }
+
+    /* Rich content safety */
+    .content-rich { overflow-wrap:anywhere; word-break:break-word; tab-size:2; font-variant-numeric:tabular-nums; }
+    .content-rich pre { white-space:pre-wrap; }
+    .content-rich code { word-break:break-word; font-family: ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; }
+    .content-rich table { width:100%; max-width:100%; overflow:hidden; }
+    .content-rich img, .content-rich video { max-width:100%; height:auto; }
+
+    /* Tiny bubbles (popovers) */
+    .popover {
+      position:fixed; z-index:50; background:#fff; border:1px solid #e5e7eb;
+      border-radius: .75rem; box-shadow:0 20px 45px rgba(16,24,40,.15), 0 2px 8px rgba(16,24,40,.06);
+      padding:.75rem; min-width:240px;
+    }
+    .popover.hidden { display:none; }
+    .popover-arrow {
+      position:absolute; top:-6px; left:16px; width:12px; height:12px; background:#fff;
+      border-left:1px solid #e5e7eb; border-top:1px solid #e5e7eb; transform: rotate(45deg);
+    }
+    /* ---- design polish (UI only) ---- */
+:root{
+  --ink:#0f172a;          /* slate-900 */
+  --muted:#64748b;        /* slate-500 */
+  --line:#e5e7eb;         /* gray-200 */
+  --surface:#ffffff;      /* white */
+  --surface-2:#f8fafc;    /* slate-50 */
+  --brand:#4f46e5;        /* indigo-600 */
+  --brand-700:#4338ca;
+  --ring:#c7d2fe;         /* indigo-200 */
+  --shadow-lg:0 20px 45px rgba(16,24,40,.10), 0 4px 14px rgba(16,24,40,.06);
+  --shadow-sm:0 2px 8px rgba(16,24,40,.06);
+}
+
+/* page surface */
+body { color:var(--ink); background:
+  radial-gradient(1200px 400px at 10% -10%, #eef2ff 0, rgba(238,242,255,0) 60%),
+  radial-gradient(1000px 500px at 110% -10%, #f0f9ff 0, rgba(240,249,255,0) 55%),
+  var(--surface-2);
+}
+
+/* sticky header: glassy, softer line */
+header { border-color: var(--line); box-shadow: var(--shadow-sm); }
+
+/* inputs */
+.input {
+  width:100%; border:1px solid var(--line); background:#fff;
+  padding:.625rem .875rem; border-radius: .875rem;
+  transition: box-shadow .2s, border-color .2s, background-color .2s;
+}
+.input::placeholder{ color:#94a3b8; }
+.input:focus{ outline:0; border-color:var(--brand); box-shadow:0 0 0 3px var(--ring); }
+
+/* generic card */
+.card {
+  background: var(--surface);
+  border:1px solid var(--line);
+  border-radius: 1rem;
+  padding:1.25rem;
+  box-shadow: 0 0 0 rgba(0,0,0,0);
+  transition: transform .12s ease, box-shadow .2s ease, border-color .2s ease;
+}
+.card:hover{ transform: translateY(-1px); box-shadow: var(--shadow-sm); border-color:#dbeafe; }
+
+/* kbd hint */
+.kbd{ font:600 11px/1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  border:1px solid var(--line); border-bottom-width:2px; border-radius:.5rem;
+  padding:.25rem .4rem; background: #fff; color:#0f172a; }
+
+/* suggestion list */
+.suggest {
+  border:1px solid var(--line);
+  border-radius: .875rem; box-shadow: var(--shadow-lg);
+  overflow:hidden;
+}
+.suggest li{ padding:.6rem .9rem; }
+.suggest li+li{ border-top:1px dashed #eef2f7; }
+.suggest li:hover{ background:#f8fafc; }
+
+/* popovers: add subtle motion */
+.popover{ animation: pop .12s ease-out; }
+@keyframes pop { from{ transform:translateY(4px); opacity:0 } to{ transform:translateY(0); opacity:1 } }
+
+/* modals: lift the panel slightly */
+.modal-backdrop .bg-white{ animation: raise .14s ease-out; }
+@keyframes raise { from{ transform:translateY(6px); opacity:.9 } to{ transform:translateY(0); opacity:1 } }
+
+/* banner accent */
+#annc-banner .bg-amber-50{
+  border-left-width:6px; border-left-color:#f59e0b;
+}
+
+/* buttons: align sizes and add subtle ring */
+.btn-primary, .btn-ghost { height: 2.5rem; border-radius:.875rem; }
+.btn-primary{ box-shadow: 0 1px 0 rgba(0,0,0,.05); }
+.btn-primary:active{ transform: translateY(0.5px); }
+.btn-ghost{ background:#fff; }
+.btn-ghost:hover{ background:#f8fafc; }
+
+/* icon buttons: larger hit area */
+.icon-btn{ width:2.25rem; height:2.25rem; display:inline-flex; align-items:center; justify-content:center; }
+
+/* detail items tidy spacing */
+#detail-list li{ scroll-margin-top: 96px; }
+
+/* skeleton shimmer (used by cache-first hints if you want) */
+.skeleton{ position:relative; overflow:hidden; background:#f1f5f9; border-radius:.75rem; }
+.skeleton::after{
+  content:''; position:absolute; inset:0; transform:translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.6), transparent);
+  animation: shimmer 1.2s infinite;
+}
+@keyframes shimmer { 100%{ transform: translateX(100%); } }
+
+  </style>
+</head>
+
+<body class="bg-gray-50 text-gray-800 antialiased min-h-screen flex flex-col">
+  <!-- Header -->
+  <header class="sticky top-0 z-40 bg-white/80 backdrop-blur border-b shadow">
+    <div class="max-w-7xl mx-auto h-16 px-4 sm:px-6 lg:px-8 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <img src="assets/woohub_logo.png" alt="WooHub" class="h-8 w-auto">
+        <span class="sr-only">WooHub</span>
+      </div>
+
+      <!-- Desktop search -->
+      <div class="hidden md:block w-full max-w-xl mx-6">
+        <div class="relative">
+          <input id="search-input" type="search" placeholder="Search templates, processes, tutorials…"
+                 class="w-full rounded-xl border border-gray-200 px-4 py-2 bg-gray-50 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                 aria-label="Search">
+          <ul id="search-suggestions" role="listbox"
+              class="hidden absolute left-0 right-0 mt-1 bg-white border rounded-xl shadow-2xl max-h-80 overflow-auto z-50"></ul>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <!-- Admin icon (lock) -->
+        <button id="admin-btn" class="icon-btn hover:bg-gray-100" aria-haspopup="true" aria-expanded="false" title="Admin">
+          <svg class="w-6 h-6 text-gray-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M8 10V7a4 4 0 118 0v3m-9 0h10a2 2 0 012 2v6a2 2 0 01-2 2H7a2 2 0 01-2-2v-6a2 2 0 012-2z"/>
+          </svg>
+        </button>
+
+        <button id="notif-btn" class="relative icon-btn hover:bg-gray-100" aria-haspopup="true" aria-expanded="false" aria-controls="notif-dd" title="Notifications">
+          <svg class="w-6 h-6 text-gray-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.4-1.4A2 2 0 0118 14.2V11a6 6 0 10-12 0v3.2c0 .5-.2 1-.6 1.4L4 17h5m6 0v1"/></svg>
+          <span id="notif-count" class="hidden absolute -top-1 -right-1 text-[10px] text-white bg-red-600 rounded-full px-1 font-bold" aria-label="unread notifications"></span>
+        </button>
+
+        <!-- Add is admin-only; toggled in JS -->
+        <button id="add-btn" class="hidden btn-primary" aria-haspopup="dialog">
+          <svg class="w-5 h-5 mr-1.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+          Add
+        </button>
+        <span id="sync-dot" class="hidden ml-2 inline-flex items-center text-xs text-gray-500">Syncing…</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Mobile search -->
+  <div class="md:hidden px-4 pt-3">
+    <div class="relative">
+      <input id="m-search-input" type="search" placeholder="Search…"
+             class="w-full rounded-xl border border-gray-200 px-4 py-2 bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+             aria-label="Search on mobile">
+      <ul id="m-search-suggestions" role="listbox"
+          class="hidden absolute left-0 right-0 mt-1 bg-white border rounded-xl shadow-2xl max-h-80 overflow-auto z-50"></ul>
+    </div>
+  </div>
+
+  <!-- Latest Announcement banner -->
+  <section id="annc-banner" class="px-4 sm:px-6 lg:px-8 mt-3 hidden">
+    <div class="bg-amber-50 border border-amber-200 rounded-2xl p-4 shadow">
+      <h3 class="text-sm font-semibold text-amber-900 mb-2">ANNOUNCEMENT</h3>
+      <ul id="annc-list" class="space-y-2"></ul>
+    </div>
+  </section>
+
+  <!-- Main -->
+  <main class="flex-1">
+    <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div id="cards" class="hydration-cloak grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"></div>
+
+      <section id="detail" class="hidden mt-8">
+        <button id="back-btn" class="text-indigo-600 hover:underline mb-4">← Back</button>
+        <h2 id="detail-title" class="text-2xl font-semibold mb-3"></h2>
+        <ul id="detail-list" class="space-y-2"></ul>
+      </section>
+
+      <p id="conn-msg" class="mt-6 text-sm text-red-600 hidden"></p>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <footer class="bg-white border-t">
+    <div class="max-w-7xl mx-auto h-14 px-4 sm:px-6 lg:px-8 flex items-center justify-between text-sm text-gray-500">
+      <p>&copy; 2025 WooHub</p>
+      <p>Developed by: Christine Anastacio</p>
+    </div>
+  </footer>
+
+  <!-- Notifications popover (NEW) -->
+<div id="notif-dd" class="popover hidden w-96 max-w-[95vw]" role="dialog" aria-modal="true" aria-labelledby="notif-title">
+  <div class="popover-arrow"></div>
+  <h3 id="notif-title" class="sr-only">Notifications</h3>
+  <ul id="notif-list" class="max-h-96 overflow-auto divide-y"></ul>
+</div>
+
+  <!-- Admin login popover (bubble) -->
+  <div id="admin-pop" class="popover hidden" role="dialog" aria-modal="true" aria-labelledby="admin-pop-title">
+    <div class="popover-arrow"></div>
+    <h3 id="admin-pop-title" class="text-sm font-semibold mb-2">Admin Login</h3>
+    <label class="block">
+      <span class="text-xs text-gray-600">Admin Key</span>
+      <input id="admin-key-input" type="password" class="mt-1 w-full border rounded-lg px-3 py-2" placeholder="Enter admin key" />
+    </label>
+    <div class="mt-3 flex items-center justify-end gap-2">
+      <button id="admin-cancel" class="btn-ghost px-3 py-1.5 text-sm">Cancel</button>
+      <button id="admin-ok" class="btn-primary px-3 py-1.5 text-sm">Unlock</button>
+    </div>
+    <p id="admin-pop-msg" class="text-xs text-red-600 mt-2"></p>
+  </div>
+
+  <!-- Delete confirmation popover -->
+  <div id="delete-pop" class="popover hidden" role="dialog" aria-modal="true" aria-labelledby="delete-pop-title">
+    <div class="popover-arrow"></div>
+    <h3 id="delete-pop-title" class="text-sm font-semibold mb-2">Delete item?</h3>
+    <p class="text-xs text-gray-600 mb-3">This action cannot be undone.</p>
+    <div class="flex items-center justify-end gap-2">
+      <button id="delete-cancel" class="btn-ghost px-3 py-1.5 text-sm">Cancel</button>
+      <button id="delete-ok" class="btn-primary px-3 py-1.5 text-sm" style="background:#dc2626">Delete</button>
+    </div>
+  </div>
+
+  <!-- Add/Edit Modal -->
+  <div id="item-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center modal-backdrop bg-black/40" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="bg-white rounded-2xl shadow-2xl w-[min(640px,92vw)] p-6 relative">
+      <button id="modal-close" class="absolute top-4 right-4 text-2xl leading-none text-gray-500 hover:text-gray-700 icon-btn" aria-label="Close">&times;</button>
+      <h3 id="modal-title" class="text-xl font-semibold mb-4">Add Content</h3>
+      <form id="item-form" class="space-y-3">
+        <input type="hidden" name="mode" value="add" />
+        <input type="hidden" name="row" value="" />
+        <div class="grid sm:grid-cols-2 gap-3">
+          <label class="block">
+            <span class="text-sm font-medium">Target Sheet</span>
+            <select name="tab" class="mt-1 w-full border rounded-lg px-3 py-2">
+              <option>Announcements</option>
+              <option>Release Notes</option>
+              <option>links</option>
+              <option>email-templates</option>
+              <option>processes</option>
+              <option>tutorials</option>
+              <option>directory</option>
+            </select>
+          </label>
+          <label class="block">
+            <span class="text-sm font-medium">Category (optional)</span>
+            <input name="category" class="mt-1 w-full border rounded-lg px-3 py-2" placeholder="e.g. Sales, HR" />
+          </label>
+        </div>
+
+        <div class="grid sm:grid-cols-2 gap-3">
+          <label class="block">
+            <span class="text-sm font-medium">Name / Title</span>
+            <input name="name" class="mt-1 w-full border rounded-lg px-3 py-2" placeholder="Item name" />
+          </label>
+          <label class="block">
+            <span class="text-sm font-medium">URL (Links tab)</span>
+            <input name="url" class="mt-1 w-full border rounded-lg px-3 py-2" placeholder="https://…" />
+          </label>
+        </div>
+
+        <label class="block">
+          <span class="text-sm font-medium">Content / Text</span>
+          <textarea name="content" rows="6" class="mt-1 w-full border rounded-lg px-3 py-2" placeholder="Rich text allowed (basic HTML)"></textarea>
+        </label>
+
+        <div id="modal-actions" class="flex items-center justify-end gap-3 pt-2">
+          <button type="button" id="modal-cancel" class="btn-ghost">Cancel</button>
+          <button type="submit" class="btn-primary">Save</button>
+        </div>
+        <p id="modal-msg" class="text-sm mt-2"></p>
+      </form>
+    </div>
+  </div>
+
+  <!-- Viewer Modal -->
+  <div id="viewer" class="hidden fixed inset-0 z-50 flex items-center justify-center modal-backdrop bg-black/40" role="dialog" aria-modal="true" aria-labelledby="viewer-title">
+    <div class="bg-white rounded-2xl shadow-2xl w-[min(900px,95vw)] max-h-[90vh] overflow-auto p-6 relative">
+      <button id="viewer-close" class="absolute top-4 right-4 text-2xl leading-none text-gray-500 hover:text-gray-700 icon-btn" aria-label="Close">&times;</button>
+      <h3 id="viewer-title" class="text-xl font-semibold mb-2"></h3>
+      <div id="viewer-body" class="prose max-w-none content-rich"></div>
+    </div>
+  </div>
+
+  <!-- Config -->
+  <script>
+    // Set to your deployed Apps Script **/exec** URL
+    const APP_BASE  = 'https://script.google.com/macros/s/AKfycbwWZiFplckQyj9-f9VxttQO3LWphZLKop4uqLgXBmNkEVNagtMKhFa93BN-fr-BUFg9_A/exec';
+    const ADMIN_KEY = 'CHANGE_ME_SUPER_STRONG'; // optional dev convenience
+    const SHEET_ID  = '1cfLvub1zli1txycgl1TZxKr_oUMvqUrhkRwkJ6UG5hw';
+  </script>
+
+  <!-- App -->
+  <script>
+    /* ===== DOM helpers ===== */
+    const qs  = s => document.querySelector(s);
+    const qsa = s => Array.from(document.querySelectorAll(s));
+
+    const $cards = qs('#cards');
+    const $detail = qs('#detail');
+    const $detailTitle = qs('#detail-title');
+    const $detailList = qs('#detail-list');
+    const $notifBtn = qs('#notif-btn');
+    const $notifCount = qs('#notif-count');
+    const $notifDD = qs('#notif-dd');
+    const $notifList = qs('#notif-list');
+    const $banner = qs('#annc-banner');
+    const $bannerList = qs('#annc-list');
+    const $addBtn = qs('#add-btn');
+    const $conn = qs('#conn-msg');
+    const $viewer = qs('#viewer');
+    const $viewerTitle = qs('#viewer-title');
+    const $viewerBody = qs('#viewer-body');
+    const $syncDot = qs('#sync-dot');
+    const $adminBtn = qs('#admin-btn');
+    const $adminPop = qs('#admin-pop');
+    const $adminKeyInput = qs('#admin-key-input');
+    const $adminOk = qs('#admin-ok');
+    const $adminCancel = qs('#admin-cancel');
+    const $adminPopMsg = qs('#admin-pop-msg');
+    const $deletePop = qs('#delete-pop');
+    const $deleteOk = qs('#delete-ok');
+    const $deleteCancel = qs('#delete-cancel');
+
+    let adminMode = false;
+
+    function getAdminKey(){ return localStorage.getItem('woohub_admin_key') || ''; }
+    function setAdminKey(k){ localStorage.setItem('woohub_admin_key', k || ''); }
+
+    /* ===== safe render ===== */
+    function escapeHTML(str='') {
+      return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+                        .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+    }
+    function renderContent(raw='') {
+      const looksLikeHTML = /<\s*[a-zA-Z]/.test(raw);
+      if (looksLikeHTML) {
+        return DOMPurify.sanitize(raw, {
+          ALLOWED_TAGS: [
+            'a','b','i','u','em','strong','p','br','ul','ol','li','blockquote','code','pre',
+            'h1','h2','h3','h4','h5','h6','table','thead','tbody','tr','th','td','hr','span','div'
+          ],
+          ALLOWED_ATTR: ['href','target','rel','class','style'],
+          ADD_ATTR: ['rel'],
+          FORBID_TAGS: ['style','script','base','iframe','meta','link'],
+          FORBID_ATTR: ['onerror','onclick','onload','onmouseover','onfocus','onblur']
+        });
+      }
+      return `<div class="whitespace-pre-wrap break-words">${escapeHTML(raw)}</div>`;
+    }
+
+    /* ===== dates & fetch ===== */
+    // e.g. "6/7, 10:14 AM"
+const fmtDate = s => s ? new Date(s).toLocaleString(undefined, {
+  month: 'numeric',
+  day:   'numeric',
+  hour:  'numeric',
+  minute:'2-digit',
+  hour12: true
+}) : '';
+
+
+    async function fetchJSON(url, options = {}) {
+      try {
+        const r = await fetch(url, { redirect: 'follow', ...options });
+        if (!r.ok) throw new Error(`HTTP ${r.status} ${r.statusText}`);
+        return r.json();
+      } catch (err) {
+        $conn.classList.remove('hidden');
+        $conn.textContent = `Network error: ${err.message}. Check your APP_BASE / deployment.`;
+        throw err;
+      }
+    }
+    async function getTab(tab) {
+      return fetchJSON(`${APP_BASE}?tab=${encodeURIComponent(tab)}`, { cache: 'no-store' });
+    }
+    async function adminAction(payload) {
+      payload.adminKey = getAdminKey();
+      return fetchJSON(APP_BASE, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // avoid preflight
+        body: JSON.stringify(payload)
+      });
+    }
+
+    /* ===== cache + optimistic queue ===== */
+    const CACHE_NS = 'woohub_cache_v1';
+    function _ck(tab){ return `${CACHE_NS}:${tab}`; }
+    function readCacheObj(tab){ try { return JSON.parse(localStorage.getItem(_ck(tab)) || '{}'); } catch { return {}; } }
+    function writeCacheObj(tab, data){ localStorage.setItem(_ck(tab), JSON.stringify({ ts: Date.now(), data })); }
+    function getCachedRows(tab){ const obj = readCacheObj(tab); return Array.isArray(obj.data) ? obj.data : []; }
+    async function getTabFast(tab, onRender){
+      const cached = getCachedRows(tab);
+      if (cached.length) onRender(cached, true);
+      try {
+        const fresh = await getTab(tab);
+        writeCacheObj(tab, fresh);
+        onRender(fresh, false);
+      } catch (e) { if (!cached.length) throw e; }
+    }
+
+    const OPS_NS = 'woohub_ops_v1';
+    const SYNC_LOCK = { working:false };
+    function _readOps(){ try { return JSON.parse(localStorage.getItem(OPS_NS) || '[]'); } catch { return []; } }
+    function _writeOps(list){ localStorage.setItem(OPS_NS, JSON.stringify(list)); }
+    function enqueueOp(op){ const list=_readOps(); list.push(op); _writeOps(list); trySyncOps(); }
+    function showSync(v){ if(!$syncDot) return; $syncDot.classList.toggle('hidden', !v); }
+    async function trySyncOps(){
+      if (SYNC_LOCK.working) return;
+      if (navigator.onLine === false) return;
+      let list = _readOps();
+      if (!list.length) return;
+      SYNC_LOCK.working = true; showSync(true);
+      try {
+        while (list.length) {
+          const op = list[0];
+          const res = await adminAction(op.body);
+          if (!res?.ok) throw new Error(res?.error || 'Sync failed');
+          list.shift(); _writeOps(list);
+        }
+      } catch (e) {
+        console.warn('Sync paused:', e.message);
+      } finally {
+        SYNC_LOCK.working = false; showSync(false);
+      }
+    }
+    window.addEventListener('online', trySyncOps);
+
+    /* ===== cards ===== */
+    const cards = [
+      { title: 'Announcements',   slug: 'Announcements',   description: 'Company-wide updates and news.' },
+      { title: 'Release Notes',   slug: 'Release Notes',   description: 'Recent changes and fixes.' },
+      { title: 'Email Templates', slug: 'email-templates', description: 'Pre-built email templates.' },
+      { title: 'Processes',       slug: 'processes',       description: 'Step-by-step workflows.' },
+      { title: 'Reports',         slug: 'reports',         description: 'P/L charts and usage reports.' },
+      { title: 'Links',           slug: 'links',           description: 'Quick access to resources.' },
+      { title: 'Tutorials',       slug: 'tutorials',       description: 'Video lessons and guides.' },
+      { title: 'Directory',       slug: 'directory',       description: 'Key people to contact.' }
+    ];
+    function renderCards() {
+      $cards.innerHTML = '';
+      for (const c of cards) {
+        const el = document.createElement('article');
+        el.className = 'bg-white rounded-2xl shadow-sm hover:shadow transition p-5 flex flex-col border';
+        el.innerHTML = `
+          <div class="flex items-center justify-between">
+            <h3 class="text-lg font-semibold">${c.title}</h3>
+          </div>
+          <p class="text-gray-600 mt-1 flex-1">${c.description}</p>
+          <button class="mt-4 text-indigo-600 hover:underline self-start">Open →</button>
+        `;
+        el.querySelector('button').onclick = () => openSection(c.slug, c.title);
+        $cards.appendChild(el);
+      }
+      $cards.classList.remove('hydration-cloak');
+      $addBtn.classList.toggle('hidden', !adminMode);
+    }
+
+    /* ===== popover utilities ===== */
+    function placePopover(pop, anchor){
+      const r = anchor.getBoundingClientRect();
+      pop.style.display = 'block'; // ensure width is measurable
+      const pw = pop.offsetWidth;
+      const top = r.bottom + 8;
+      const left = Math.max(8, Math.min(window.innerWidth - pw - 8, r.left));
+      pop.style.top = `${top}px`; pop.style.left = `${left}px`;
+      const arrow = pop.querySelector('.popover-arrow');
+      if (arrow) arrow.style.left = `${Math.min(r.width/2, 24)}px`;
+    }
+    function openPopover(pop, anchor){
+      pop.classList.remove('hidden');
+      placePopover(pop, anchor);
+      pop._re = () => placePopover(pop, anchor);
+      window.addEventListener('resize', pop._re);
+      window.addEventListener('scroll', pop._re, true);
+      pop._out = (e)=>{ if(!pop.contains(e.target) && e.target!==anchor) closePopover(pop); };
+      pop._esc = (e)=>{ if(e.key==='Escape') closePopover(pop); };
+      setTimeout(()=>document.addEventListener('click', pop._out), 0);
+      document.addEventListener('keydown', pop._esc);
+    }
+    function closePopover(pop){
+      pop.classList.add('hidden');
+      window.removeEventListener('resize', pop._re);
+      window.removeEventListener('scroll', pop._re, true);
+      document.removeEventListener('click', pop._out);
+      document.removeEventListener('keydown', pop._esc);
+    }
+
+    /* ===== sections (cache-first) ===== */
+    async function openSection(slug, title) {
+      $detail.classList.remove('hidden');
+      $cards.classList.add('hidden');
+      $detailTitle.textContent = title;
+      $detailList.innerHTML = '';
+
+      const hint = (fromCache) => {
+        if (!fromCache) return;
+        const el = document.createElement('div');
+        el.className = 'text-xs text-gray-400 mt-1';
+        el.textContent = 'Refreshing...';
+        $detailList.parentElement.insertBefore(el, $detailList);
+        setTimeout(()=> el.remove(), 1500);
+      };
+
+      // Announcements / Release Notes
+      if (slug === 'Announcements' || slug === 'Release Notes') {
+        const render = (rows, fromCache) => {
+          $detailList.innerHTML = '';
+          if (!rows.length) { $detailList.innerHTML = '<li class="text-gray-500">No items yet.</li>'; return; }
+          for (const r of rows.sort((a,b)=>new Date(b.time)-new Date(a.time))) {
+            const li = document.createElement('li');
+            li.className = 'p-3 bg-white rounded-xl border';
+            li.innerHTML = `
+              <div class="grid grid-cols-[1fr_auto] items-start gap-3">
+                <div class="prose max-w-none content-rich min-w-0">${renderContent(r.text || '')}</div>
+                <div class="flex flex-col items-end gap-2 shrink-0">
+                  <time class="text-xs text-gray-500">${fmtDate(r.time)}</time>
+                  ${adminMode ? `
+                    <div class="flex gap-1">
+                      <button class="icon-btn" title="Edit" data-act="edit" data-row="${r._row || ''}" data-tab="${slug}" data-text="${encodeURIComponent(r.text||'')}">✏️</button>
+                      <button class="icon-btn" title="Delete" data-act="del" data-row="${r._row || ''}" data-tab="${slug}">🗑️</button>
+                    </div>` : ''}
+                </div>
+              </div>`;
+            $detailList.appendChild(li);
+          }
+          if (adminMode) wireAdminRowButtons($detailList);
+          hint(fromCache);
+        };
+        await getTabFast(slug, render);
+        return;
+      }
+
+      // Links
+      if (slug === 'links') {
+        const render = (rows, fromCache) => {
+          $detailList.innerHTML = '';
+          const groups = rows.reduce((a, r) => { (a[r.category || 'Other'] ??= []).push(r); return a; }, {});
+          for (const [cat, list] of Object.entries(groups)) {
+            const h = document.createElement('h4');
+            h.className = 'text-sm font-semibold text-gray-500 mt-4';
+            h.textContent = cat;
+            $detailList.appendChild(h);
+            list.forEach(i => {
+              const li = document.createElement('li');
+              li.className = 'p-3 bg-white rounded-xl border';
+              li.innerHTML = `
+                <div class="grid grid-cols-[1fr_auto] items-center gap-3">
+                  <a class="text-indigo-600 hover:underline truncate" href="${i.url}" target="_blank" rel="noopener">${i.name}</a>
+                  ${adminMode ? `
+                    <div class="flex gap-1 justify-end">
+                      <button class="icon-btn" title="Edit" data-act="edit" data-row="${i._row || ''}" data-tab="links" data-name="${i.name}" data-url="${i.url}" data-category="${i.category||''}">✏️</button>
+                      <button class="icon-btn" title="Delete" data-act="del" data-row="${i._row || ''}" data-tab="links">🗑️</button>
+                    </div>` : ''}
+                </div>`;
+              $detailList.appendChild(li);
+            });
+          }
+          if (adminMode) wireAdminRowButtons($detailList);
+          hint(fromCache);
+        };
+        await getTabFast('links', render);
+        return;
+      }
+
+      // Reports
+      if (slug === 'reports') {
+        await ensureChartJS();
+        $detailList.innerHTML = `
+          <div class="grid md:grid-cols-2 gap-6 w-full">
+            <div class="bg-white border rounded-xl p-4"><canvas id="chartA" class="w-full h-64"></canvas></div>
+            <div class="bg-white border rounded-xl p-4"><canvas id="chartB" class="w-full h-64"></canvas></div>
+          </div>`;
+        const makeUrl = tab =>
+          `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?sheet=${encodeURIComponent(tab)}&tqx=out:json`;
+
+        for (const [tab, id] of [['WooParts P/L', 'chartA'], ['AutoApex P/L', 'chartB']]) {
+          try {
+            const raw = await fetch(makeUrl(tab)).then(r => r.text());
+            const json = JSON.parse(raw.substr(47).slice(0, -2));
+            const rows = json.table.rows || [];
+            if (!rows.length) continue;
+            const labels = rows.map(r => r.c[0]?.v);
+            const profits = rows.map(r => r.c[1]?.v);
+            const margins = rows.map(r => r.c[2]?.v);
+            new Chart(document.getElementById(id), {
+              type: 'bar',
+              data: {
+                labels,
+                datasets: [
+                  { label: 'Net Profit', data: profits },
+                  { label: 'Net Profit Margin %', data: margins, yAxisID: 'marginAxis' }
+                ]
+              },
+              options: {
+                responsive: true, maintainAspectRatio: false,
+                scales: {
+                  y: { beginAtZero: true, title: { display: true, text: 'Net Profit' } },
+                  marginAxis: { beginAtZero: true, position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: 'Net Profit Margin %' },
+                    ticks: { callback: v => (v * 100).toFixed(1) + '%' } }
+                }
+              }
+            });
+          } catch (err) { console.warn('Chart load failed for', tab, err); }
+        }
+        return;
+      }
+
+      // Generic sections
+      const renderGeneric = (rows, fromCache) => {
+        $detailList.innerHTML = '';
+        const groups = rows.reduce((a, r) => { (a[r.category || 'Other'] ??= []).push(r); return a; }, {});
+        for (const [cat, list] of Object.entries(groups)) {
+          const h = document.createElement('h4');
+          h.className = 'text-sm font-semibold text-gray-500 mt-4';
+          h.textContent = cat;
+          $detailList.appendChild(h);
+          list.forEach(i => {
+            const li = document.createElement('li');
+            li.className = 'p-3 bg-white rounded-xl border';
+            li.innerHTML = `
+              <div class="grid grid-cols-[1fr_auto] items-center gap-3">
+                <button class="text-indigo-600 hover:underline text-left truncate" data-open="viewer">${i.name}</button>
+                ${adminMode ? `
+                  <div class="flex gap-1 justify-end">
+                    <button class="icon-btn" title="Edit" data-act="edit" data-row="${i._row || ''}" data-tab="${slug}" data-name="${i.name}" data-content="${encodeURIComponent(i.content || '')}" data-category="${i.category||''}">✏️</button>
+                    <button class="icon-btn" title="Delete" data-act="del" data-row="${i._row || ''}" data-tab="${slug}">🗑️</button>
+                  </div>` : ''}
+              </div>`;
+            li.querySelector('[data-open="viewer"]').addEventListener('click', () => openViewer(i.name, i.content));
+            $detailList.appendChild(li);
+          });
+        }
+        if (adminMode) wireAdminRowButtons($detailList);
+        hint(fromCache);
+      };
+      await getTabFast(slug, renderGeneric);
+    }
+
+    /* ===== viewer modal ===== */
+    function openViewer(name, html) {
+      $viewerTitle.textContent = name || '';
+      $viewerBody.innerHTML = renderContent(html) || '<p class="text-gray-500">No content.</p>';
+      openModal($viewer);
+    }
+    qs('#viewer-close').addEventListener('click', () => closeModal($viewer));
+    $viewer.addEventListener('click', (e) => { if (e.target === $viewer) closeModal($viewer); });
+
+    /* ===== admin row buttons (delete bubble) ===== */
+    let pendingDelete = null; // {tab,row,anchor}
+    function wireAdminRowButtons(container) {
+      container.querySelectorAll('button[data-act="edit"]').forEach(btn => {
+        btn.onclick = () => openEditModal(btn.dataset);
+      });
+      container.querySelectorAll('button[data-act="del"]').forEach(btn => {
+        btn.onclick = () => {
+          pendingDelete = { tab: btn.dataset.tab, row: Number(btn.dataset.row || 0), anchor: btn };
+          openPopover($deletePop, btn);
+        };
+      });
+    }
+    $deleteCancel.addEventListener('click', () => { closePopover($deletePop); pendingDelete = null; });
+    $deleteOk.addEventListener('click', async () => {
+      if (!pendingDelete) return;
+      const { tab, row } = pendingDelete;
+      closePopover($deletePop);
+
+      // Optimistic remove from cache
+      const current = getCachedRows(tab);
+      const filtered = current.filter(it => it._row !== row && row !== 0);
+      writeCacheObj(tab, filtered);
+
+      await refreshOpenSectionIfAny();
+      await renderAnnouncementsBanner();
+      await refreshNotifications();
+
+      enqueueOp({ body: { action: 'delete', tab, row } });
+      pendingDelete = null;
+    });
+
+    /* ===== admin login bubble ===== */
+    function openAdminLogin(){
+      $adminPopMsg.textContent = '';
+      $adminKeyInput.value = getAdminKey() || ADMIN_KEY || '';
+      openPopover($adminPop, $adminBtn);
+      setTimeout(() => $adminKeyInput.focus(), 0);
+    }
+    $adminBtn.addEventListener('click', () => {
+      const isOpen = !$adminPop.classList.contains('hidden');
+      if (isOpen) { closePopover($adminPop); return; }
+      openAdminLogin();
+    });
+    $adminCancel.addEventListener('click', () => closePopover($adminPop));
+    $adminOk.addEventListener('click', () => {
+      const key = $adminKeyInput.value.trim();
+      if (!key) { $adminPopMsg.textContent = 'Please enter a key.'; return; }
+      setAdminKey(key);
+      adminMode = true;
+      renderCards();
+      closePopover($adminPop);
+    });
+    $adminKeyInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') $adminOk.click(); });
+
+    /* ===== add/edit modal ===== */
+    const $modal = qs('#item-modal');
+    const $form  = qs('#item-form');
+    const $msg   = qs('#modal-msg');
+    const $title = qs('#modal-title');
+
+    function openAddModal() {
+      $form.reset();
+      $form.mode.value = 'add';
+      $title.textContent = 'Add Content';
+      openModal($modal);
+    }
+    function openEditModal(data) {
+      $form.reset();
+      $form.mode.value = 'edit';
+      $title.textContent = 'Edit Item';
+      $form.tab.value = data.tab;
+      $form.row.value = data.row || '';
+      if (data.category) $form.category.value = data.category;
+      if (data.name)     $form.name.value = data.name;
+      if (data.url)      $form.url.value = data.url;
+      if (data.text)     $form.content.value = decodeURIComponent(data.text);
+      if (data.content)  $form.content.value = decodeURIComponent(data.content);
+      openModal($modal);
+    }
+
+    async function refreshOpenSectionIfAny() {
+      if ($detail.classList.contains('hidden')) return;
+      const title = $detailTitle.textContent.trim();
+      const card = ([
+        { title: 'Announcements', slug: 'Announcements' },
+        { title: 'Release Notes', slug: 'Release Notes' },
+        { title: 'Email Templates', slug: 'email-templates' },
+        { title: 'Processes', slug: 'processes' },
+        { title: 'Reports', slug: 'reports' },
+        { title: 'Links', slug: 'links' },
+        { title: 'Tutorials', slug: 'tutorials' },
+        { title: 'Directory', slug: 'directory' },
+      ]).find(c => c.title === title);
+      if (card) await openSection(card.slug, card.title);
+    }
+
+    $addBtn.addEventListener('click', openAddModal);
+    qs('#modal-close').addEventListener('click', () => closeModal($modal));
+    qs('#modal-cancel').addEventListener('click', () => closeModal($modal));
+    $modal.addEventListener('click', (e) => { if (e.target === $modal) closeModal($modal); });
+
+    // Optimistic submit
+    $form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      $msg.className = 'text-sm';
+      $msg.textContent = 'Saving locally…';
+
+      const fd = new FormData($form);
+      const mode = fd.get('mode');
+      const tab  = fd.get('tab');
+      const payload = {
+        tab,
+        category: fd.get('category') || '',
+        name: fd.get('name') || '',
+        url: fd.get('url') || '',
+        content: fd.get('content') || ''
+      };
+
+      // Optimistic cache update
+      const nowISO = new Date().toISOString();
+      const current = getCachedRows(tab);
+
+      if (mode === 'add') {
+        let optimistic;
+        if (tab === 'Announcements' || tab === 'Release Notes') {
+          optimistic = { time: nowISO, text: payload.content, _row: null };
+        } else if (tab === 'links') {
+          optimistic = { category: payload.category, name: payload.name, url: payload.url, _row: null };
+        } else {
+          optimistic = { category: payload.category, name: payload.name, content: payload.content, _row: null };
+        }
+        writeCacheObj(tab, [optimistic, ...current]);
+      } else {
+        const row = Number(fd.get('row') || 0);
+        const updated = current.map(it => {
+          if (row && it._row === row) {
+            if (tab === 'Announcements' || tab === 'Release Notes') return { ...it, time: nowISO, text: payload.content };
+            if (tab === 'links') return { ...it, category: payload.category, name: payload.name, url: payload.url };
+            return { ...it, category: payload.category, name: payload.name, content: payload.content };
+          }
+          return it;
+        });
+        writeCacheObj(tab, updated);
+      }
+
+      await Promise.all([refreshOpenSectionIfAny(), renderAnnouncementsBanner(), refreshNotifications()]);
+
+      const body = (mode === 'add')
+        ? { action: 'add', ...payload }
+        : { action: 'update', row: Number(fd.get('row')||0), ...payload };
+      enqueueOp({ body });
+
+      $msg.className = 'text-sm text-green-600';
+      $msg.textContent = 'Saved locally — syncing…';
+      setTimeout(() => { closeModal($modal); }, 400);
+    });
+
+    /* ===== notifications ===== */
+    function getNotifReadAt(){ return Number(localStorage.getItem('woohub_notif_read_at') || 0); }
+    function setNotifReadAt(ts){ localStorage.setItem('woohub_notif_read_at', String(ts)); }
+
+    async function refreshNotifications() {
+      try {
+        const rows = await getTab('notifications');
+        $notifList.innerHTML = '';
+        const readAt = getNotifReadAt();
+        let unread = 0;
+
+        for (const n of rows.sort((a,b)=>new Date(b.time)-new Date(a.time))) {
+          const t = n.time ? new Date(n.time).getTime() : 0;
+          if (t > readAt) unread++;
+          const li = document.createElement('li');
+          li.className = 'p-3 hover:bg-gray-50';
+          li.innerHTML = `
+            <div class="grid grid-cols-[1fr_auto] items-center gap-3">
+              <span class="content-rich min-w-0">${renderContent(n.text || '')}</span>
+              <time class="text-xs text-gray-500 whitespace-nowrap shrink-0 mt-0.5">${fmtDate(n.time)}</time>
+            </div>`;
+          $notifList.appendChild(li);
+        }
+        if (unread > 0) {
+          $notifCount.textContent = unread;
+          $notifCount.classList.remove('hidden');
+        } else {
+          $notifCount.classList.add('hidden');
+        }
+      } catch {}
+    }
+
+    $notifBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      setNotifReadAt(Date.now());
+      $notifCount.classList.add('hidden');
+
+  if ($notifDD.classList.contains('hidden')) {
+    openPopover($notifDD, $notifBtn);     // position under the bell
+    $notifBtn.setAttribute('aria-expanded', 'true');
+  } else {
+    closePopover($notifDD);
+    $notifBtn.setAttribute('aria-expanded', 'false');
+  }
+});
+
+// Remove the old document.addEventListener('click', ...) block for notif;
+// openPopover/closePopover already handle outside-click + Esc + resize/scroll.
+
+
+    // Latest-only announcement banner
+    async function renderAnnouncementsBanner() {
+      try {
+        const rows = await getTab('Announcements');
+        if (!rows?.length) return;
+        const latest = rows.sort((a,b)=>new Date(b.time)-new Date(a.time))[0];
+        if (!latest) return;
+
+        const html = renderContent(latest.text || '');
+        $bannerList.innerHTML = `
+          <li class="flex items-start gap-3">
+            <span class="mt-1">📣</span>
+            <div class="content-rich">
+              <div class="prose max-w-none">${html}</div>
+              <time class="text-xs text-gray-500">${fmtDate(latest.time)}</time>
+            </div>
+          </li>`;
+        $banner.classList.remove('hidden');
+      } catch {}
+    }
+
+    /* ===== search (Fuse lazy) ===== */
+    async function ensureFuse() {
+      if (!window.Fuse) await import('https://cdn.jsdelivr.net/npm/fuse.js@6.6.2/dist/fuse.min.js');
+    }
+    async function buildSearchIndex() {
+      await ensureFuse();
+      const items = [];
+      for (const c of cards) items.push({ name: c.title, content: c.description, slug: c.slug, root: true });
+      const sections = ['email-templates','processes','tutorials','directory','links','Announcements','Release Notes'];
+      const promises = sections.map(async s => {
+        try {
+          const rows = await getTab(s);
+          for (const r of rows) items.push({ name: r.name || (r.text ? r.text.slice(0,60) : s), content: r.content || r.text || r.url || '', slug: s, root: false });
+        } catch {}
+      });
+      await Promise.allSettled(promises);
+      return new Fuse(items, { keys: ['name','content'], threshold: 0.35, includeMatches: true });
+    }
+    let fuseInstance, searchBuilt = false;
+    async function ensureSearch() {
+      if (!searchBuilt) { fuseInstance = await buildSearchIndex(); searchBuilt = true; }
+      return fuseInstance;
+    }
+    function wireSearch(inputEl, listEl) {
+      inputEl.addEventListener('input', async (e) => {
+        const q = e.target.value.trim();
+        if (!q) return listEl.classList.add('hidden');
+        const fuse = await ensureSearch();
+        const results = fuse.search(q).slice(0, 12);
+        listEl.innerHTML = results.length ? results.map(r => `<li class="px-4 py-2 hover:bg-gray-50 cursor-pointer">${r.item.name}</li>`).join('') :
+          `<li class="px-4 py-2 text-gray-500">No results</li>`;
+        listEl.classList.remove('hidden');
+        Array.from(listEl.children).forEach((li, idx) => {
+          const { item } = results[idx] || {};
+          li.onclick = () => {
+            listEl.classList.add('hidden');
+            openSection(item.slug, cards.find(c => c.slug === item.slug)?.title || item.slug);
+          };
+        });
+      });
+      document.addEventListener('click', (e) => {
+        if (!listEl.contains(e.target) && e.target !== inputEl) listEl.classList.add('hidden');
+      });
+    }
+
+    /* ===== modal plumbing ===== */
+    function trapFocus(modal) {
+      const focusables = modal.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+      const first = focusables[0], last = focusables[focusables.length - 1];
+      function loop(e) {
+        if (e.key !== 'Tab') return;
+        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+      }
+      modal._untrap = () => modal.removeEventListener('keydown', loop);
+      modal.addEventListener('keydown', loop);
+      (first || modal).focus();
+    }
+    function openModal(modal) {
+      modal.classList.remove('hidden');
+      document.body.style.overflow = 'hidden';
+      trapFocus(modal);
+      modal._esc = (e) => { if (e.key === 'Escape') closeModal(modal); };
+      document.addEventListener('keydown', modal._esc);
+    }
+    function closeModal(modal) {
+      modal.classList.add('hidden');
+      document.body.style.overflow = '';
+      modal._untrap && modal._untrap();
+      document.removeEventListener('keydown', modal._esc || (()=>{}));
+    }
+
+    // Back button
+    qs('#back-btn').addEventListener('click', () => {
+      $detail.classList.add('hidden');
+      qs('#cards').classList.remove('hidden');
+    });
+
+    // Charts lazy import
+    async function ensureChartJS() {
+      if (!window.Chart) await import('https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js');
+    }
+function closePopover(pop){
+  pop.classList.add('hidden');
+  pop.style.display = 'none';     // important to beat any inline display:block
+  window.removeEventListener('resize', pop._re);
+  window.removeEventListener('scroll', pop._re, true);
+  document.removeEventListener('click', pop._out);
+  document.removeEventListener('keydown', pop._esc);
+}
+
+    // Init
+    (async function init() {
+      if (ADMIN_KEY && !getAdminKey()) setAdminKey(ADMIN_KEY); // optional dev convenience
+      renderCards();
+      wireSearch(qs('#search-input'), qs('#search-suggestions'));
+      wireSearch(qs('#m-search-input'), qs('#m-search-suggestions'));
+      await renderAnnouncementsBanner();
+      await refreshNotifications();
+      setInterval(refreshNotifications, 60_000);
+      trySyncOps();
+    })();
+  </script>
+</body>
+</html>
