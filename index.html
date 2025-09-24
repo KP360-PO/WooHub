@@ -27,16 +27,17 @@
       display:inline-flex; align-items:center; justify-content:center;
       background:#4f46e5; color:#fff; border-radius:.75rem; padding:.5rem 1rem;
       border: none; font-weight:500;
+      transition: transform .12s ease, box-shadow .2s ease;
     }
-    .btn-primary:hover { background:#4338ca; }
+    .btn-primary:hover { background:#4338ca; transform: translateY(-1px); }
     .btn-primary:focus-visible { outline:2px solid #4f46e5; outline-offset:2px; }
 
     .btn-ghost {
       display:inline-flex; align-items:center; justify-content:center;
       background:#fff; color:#111827; border-radius:.75rem; padding:.5rem 1rem;
-      border:1px solid #e5e7eb;
+      border:1px solid #e5e7eb; transition: transform .12s ease, box-shadow .2s ease;
     }
-    .btn-ghost:hover { background:#f9fafb; }
+    .btn-ghost:hover { background:#f9fafb; transform: translateY(-1px); }
     .btn-ghost:focus-visible { outline:2px solid #4f46e5; outline-offset:2px; }
 
     /* Rich content safety */
@@ -57,6 +58,7 @@
       position:absolute; top:-6px; left:16px; width:12px; height:12px; background:#fff;
       border-left:1px solid #e5e7eb; border-top:1px solid #e5e7eb; transform: rotate(45deg);
     }
+
     /* ---- design polish (UI only) ---- */
 :root{
   --ink:#0f172a;          /* slate-900 */
@@ -151,6 +153,46 @@ header { border-color: var(--line); box-shadow: var(--shadow-sm); }
 }
 @keyframes shimmer { 100%{ transform: translateX(100%); } }
 
+/* --- ✨ tasteful fun additions (kept subtle & professional) --- */
+.fun-icon{ position:relative; transition: transform .15s ease; }
+.fun-icon:hover{ transform: translateY(-1px) rotate(-2deg); }
+.fun-icon::after{
+  content:''; position:absolute; inset:-1px; border-radius:inherit;
+  background: radial-gradient(14px 14px at 120% -20%, rgba(79,70,229,.25), transparent 60%);
+  opacity:.0; transition: opacity .2s ease;
+}
+.fun-icon:hover::after{ opacity:1; }
+
+.fun-sheen{
+  background-image: linear-gradient(90deg, currentColor 0%, currentColor 40%, #9aa5ff 50%, currentColor 60%, currentColor 100%);
+  -webkit-background-clip:text; background-clip:text; color:transparent;
+  background-size:200% 100%; transition: background-position .35s ease, transform .15s ease;
+}
+.fun-sheen:hover{ background-position: 100% 0; transform: translateX(1px); }
+
+/* card micro-bounce on hover */
+article:hover{ transform: translateY(-2px); }
+
+/* tiny wiggle for the bell when there are unread items (applies when count is visible) */
+@keyframes bell-wiggle {
+  0%,100%{ transform: rotate(0); }
+  25%{ transform: rotate(-7deg); }
+  50%{ transform: rotate(6deg); }
+  75%{ transform: rotate(-3deg); }
+}
+#notif-count:not(.hidden) ~ svg, /* fallback if structure changes */
+#notif-btn:not(:has(#notif-count.hidden)) svg{
+  animation: bell-wiggle .7s ease both;
+}
+
+/* respect reduced motion (disable fun bits) */
+@media (prefers-reduced-motion: reduce){
+  .fun-icon:hover{ transform:none; }
+  .fun-icon::after{ display:none; }
+  .fun-sheen{ background-image:none; color:inherit; }
+  article:hover{ transform:none; }
+  #notif-btn svg{ animation:none!important; }
+}
   </style>
 
 <style id="kp360-playground-theme">
@@ -261,7 +303,7 @@ header { border-color: var(--line); box-shadow: var(--shadow-sm); }
   <footer class="bg-white border-t">
     <div class="max-w-7xl mx-auto h-14 px-4 sm:px-6 lg:px-8 flex items-center justify-between text-sm text-gray-500">
       <p>&copy; 2025 WooHub</p>
-      <p>Developed by: Christine Anastacio</p>
+      <p>Created by: Christine Anastacio</p>
     </div>
   </footer>
 
@@ -535,14 +577,14 @@ function showSync(){ /* removed */ }
         el.innerHTML = `
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-3">
-              <span class="shrink-0 w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 grid place-items-center">
+              <span class="shrink-0 w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 grid place-items-center fun-icon">
                 ${c.icon || ''}
               </span>
               <h3 class="text-lg font-semibold">${c.title}</h3>
             </div>
           </div>
           <p class="text-gray-600 mt-1 flex-1">${c.description}</p>
-          <button class="mt-4 text-indigo-600 hover:underline self-start">Open →</button>
+          <button class="mt-4 text-indigo-600 hover:underline self-start fun-sheen">Open →</button>
         `;
         el.querySelector('button').onclick = () => openSection(c.slug, c.title);
         $cards.appendChild(el);
