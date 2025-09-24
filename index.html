@@ -494,14 +494,38 @@ function showSync(){ /* removed */ }
 
 
     const cards = [
-      { title: 'Announcements',   slug: 'Announcements',   description: 'Company-wide updates and news.' },
-      { title: 'Release Notes',   slug: 'Release Notes',   description: 'Recent changes and fixes.' },
-      { title: 'Email Templates', slug: 'email-templates', description: 'Pre-built email templates.' },
-      { title: 'Processes',       slug: 'processes',       description: 'Step-by-step workflows.' },
-      { title: 'Reports',         slug: 'reports',         description: 'P/L charts and usage reports.' },
-      { title: 'Links',           slug: 'links',           description: 'Quick access to resources.' },
-      { title: 'Tutorials',       slug: 'tutorials',       description: 'Video lessons and guides.' },
-      { title: 'Directory',       slug: 'directory',       description: 'Key people to contact.' }
+      { title: 'Announcements',   slug: 'Announcements',   description: 'Company-wide updates and news.',        icon: `
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true" class="w-5 h-5">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 8l-7 4-7-4m14 0v6a2 2 0 01-2 2h-3m5-8l-7 4m-7-4v6a2 2 0 002 2h3m2-4v6"/>
+        </svg>` },
+      { title: 'Release Notes',   slug: 'Release Notes',   description: 'Recent changes and fixes.',             icon: `
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true" class="w-5 h-5">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7 7h10M7 17h6M7 3h10a2 2 0 012 2v14a2 2 0 01-2 2H7a2 2 0 01-2-2V5a2 2 0 012-2z"/>
+        </svg>` },
+      { title: 'Email Templates', slug: 'email-templates', description: 'Pre-built email templates.',            icon: `
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true" class="w-5 h-5">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6l8 6 8-6M4 6h16v12H4z"/>
+        </svg>` },
+      { title: 'Processes',       slug: 'processes',       description: 'Step-by-step workflows.',               icon: `
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true" class="w-5 h-5">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h6v4H4V6zm10 0h6v4h-6V6zM4 14h6v4H4v-4zm10 2h6m-6-4h6"/>
+        </svg>` },
+      { title: 'Reports',         slug: 'reports',         description: 'P/L charts and usage reports.',         icon: `
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true" class="w-5 h-5">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 19h16M6 17V7m6 10V9m6 8V5"/>
+        </svg>` },
+      { title: 'Links',           slug: 'links',           description: 'Quick access to resources.',            icon: `
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true" class="w-5 h-5">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 13a5 5 0 007.07 0l1.41-1.41a5 5 0 10-7.07-7.07L10 5m4 6a5 5 0 01-7.07 0L5.52 9.59a5 5 0 117.07-7.07L14 5"/>
+        </svg>` },
+      { title: 'Tutorials',       slug: 'tutorials',       description: 'Video lessons and guides.',             icon: `
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true" class="w-5 h-5">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 6h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2z"/>
+        </svg>` },
+      { title: 'Directory',       slug: 'directory',       description: 'Key people to contact.',                icon: `
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true" class="w-5 h-5">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11c1.657 0 3-1.567 3-3.5S17.657 4 16 4s-3 1.567-3 3.5S14.343 11 16 11zM6 11c1.657 0 3-1.567 3-3.5S7.657 4 6 4 3 5.567 3 7.5 4.343 11 6 11zm10 2c-2.21 0-4 1.79-4 4v1h8v-1c0-2.21-1.79-4-4-4zM6 13c-2.21 0-4 1.79-4 4v1h8v-1c0-2.21-1.79-4-4-4z"/>
+        </svg>` }
     ];
     function renderCards() {
       $cards.innerHTML = '';
@@ -510,7 +534,12 @@ function showSync(){ /* removed */ }
         el.className = 'bg-white rounded-2xl shadow-sm hover:shadow transition p-5 flex flex-col border';
         el.innerHTML = `
           <div class="flex items-center justify-between">
-            <h3 class="text-lg font-semibold">${c.title}</h3>
+            <div class="flex items-center gap-3">
+              <span class="shrink-0 w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 grid place-items-center">
+                ${c.icon || ''}
+              </span>
+              <h3 class="text-lg font-semibold">${c.title}</h3>
+            </div>
           </div>
           <p class="text-gray-600 mt-1 flex-1">${c.description}</p>
           <button class="mt-4 text-indigo-600 hover:underline self-start">Open →</button>
