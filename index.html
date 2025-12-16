@@ -404,7 +404,7 @@ article:hover{ transform: translateY(-2px); }
   <!-- Config -->
   <script>
     // Set to your deployed Apps Script **/exec** URL
-    const APP_BASE  = 'https://script.google.com/macros/s/AKfycbwWZiFplckQyj9-f9VxttQO3LWphZLKop4uqLgXBmNkEVNagtMKhFa93BN-fr-BUFg9_A/exec';
+    const APP_BASE  = 'https://script.google.com/macros/s/AKfycbwEpw__UvVzy0AiYMau9TaeIWVMetRRotW6irQpc9rm5BkoE4AxByJa9_9X_3C68RozRQ/exec';
     const ADMIN_KEY = 'CHANGE_ME_SUPER_STRONG'; // optional dev convenience
     const SHEET_ID  = '1cfLvub1zli1txycgl1TZxKr_oUMvqUrhkRwkJ6UG5hw';
   </script>
@@ -445,6 +445,37 @@ article:hover{ transform: translateY(-2px); }
 
     function getAdminKey(){ return localStorage.getItem('woohub_admin_key') || ''; }
     function setAdminKey(k){ localStorage.setItem('woohub_admin_key', k || ''); }
+
+    function getAdminUnlocked(){ return localStorage.getItem('woohub_admin_unlocked') === '1'; }
+function setAdminUnlocked(v){ localStorage.setItem('woohub_admin_unlocked', v ? '1' : '0'); }
+
+async function validateAdminKey(key){
+  // Option A (best): ask your Apps Script to validate the key
+  // Requires backend support: action: 'auth' returning { ok:true } or { ok:false, error:'...' }
+  try {
+    const res = await fetchJSON(APP_BASE, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: 'auth', adminKey: key })
+    });
+    return !!res?.ok;
+  } catch {
+    return false;
+  }
+
+  // Option B (fallback / dev-only): compare to ADMIN_KEY in the client
+  // return key === ADMIN_KEY;
+}
+
+function lockAdmin(){
+  adminMode = false;
+  setAdminUnlocked(false);
+  $addBtn.classList.add('hidden');
+  // If you’re inside a section, refresh to remove edit/delete buttons
+  refreshOpenSectionIfAny?.();
+  renderCards();
+}
+
 
     /* ===== safe render ===== */
     function escapeHTML(str='') {
@@ -829,14 +860,37 @@ function showSync(){ /* removed */ }
       openAdminLogin();
     });
     $adminCancel.addEventListener('click', () => closePopover($adminPop));
-    $adminOk.addEventListener('click', () => {
-      const key = $adminKeyInput.value.trim();
-      if (!key) { $adminPopMsg.textContent = 'Please enter a key.'; return; }
-      setAdminKey(key);
-      adminMode = true;
-      renderCards();
-      closePopover($adminPop);
-    });
+    $adminOk.addEventListener('click', async () => {
+  const key = $adminKeyInput.value.trim();
+  if (!key) { 
+    $adminPopMsg.textContent = 'Please enter a key.'; 
+    return; 
+  }
+
+  $adminPopMsg.textContent = 'Checking…';
+
+  const ok = await validateAdminKey(key);
+  if (!ok) {
+    // Alert + inline message
+    alert('Wrong Admin Key.');
+    $adminPopMsg.textContent = 'Wrong Admin Key.';
+    $adminKeyInput.focus();
+    $adminKeyInput.select();
+    setAdminUnlocked(false);
+    adminMode = false;
+    renderCards();
+    return;
+  }
+
+  setAdminKey(key);
+  setAdminUnlocked(true);
+  adminMode = true;
+
+  renderCards();
+  await refreshOpenSectionIfAny?.();
+  closePopover($adminPop);
+});
+
     $adminKeyInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') $adminOk.click(); });
 
     /* ===== add/edit modal ===== */
@@ -1122,8 +1176,12 @@ function closePopover(pop){
 
     // Init
     (async function init() {
-      if (ADMIN_KEY && !getAdminKey()) setAdminKey(ADMIN_KEY); // optional dev convenience
-      renderCards();
+      // Optional dev convenience: keep, but do NOT auto-unlock
+if (ADMIN_KEY && !getAdminKey()) setAdminKey(ADMIN_KEY);
+
+adminMode = getAdminUnlocked();   // restore unlocked state
+renderCards();
+
       wireSearch(qs('#search-input'), qs('#search-suggestions'));
       wireSearch(qs('#m-search-input'), qs('#m-search-suggestions'));
       await renderAnnouncementsBanner();
